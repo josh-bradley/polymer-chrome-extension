@@ -1,0 +1,7 @@
+{
+  "name": "Polymer Dev",
+  "version": "0.1",
+  "description": "Extends the developer tools to show the properties available to the nearest parent polymer element of the currently selected element",
+  "devtools_page": "polymerDevTools.html",
+  "manifest_version": 2
+}
