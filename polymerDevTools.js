@@ -4,7 +4,7 @@ var getParentPolymerElementProperties = function() {
                             "_observers", "_publishLC", "_publishNames", "_readied",
                             "constructor", "element", "eventDelegates", "hasBeenAttached",
                             "observe", "publish", "reflect", "resolvePath", "shadowRoots",
-                            "templateInstance"];
+                            "templateInstance", "templateInstance_"];
 
     blackListProps = blackListProps.concat(Object.getOwnPropertyNames(document.body));
 
@@ -30,14 +30,14 @@ var getParentPolymerElementProperties = function() {
         }
     };
 
-    var getPolymerElementProperties = function(polymerElement) {
+    var getElementProperties = function(polymerElement) {
         var props = Object.getOwnPropertyNames(polymerElement);
         // Need to get items in prototype as well.
         return props.concat(Object.getOwnPropertyNames(polymerElement.__proto__));
     };
 
-    var buildBindingsElement = function(polymerElement){
-        var props = getPolymerElementProperties(polymerElement);
+    var getUserBindings = function(polymerElement){
+        var props = getElementProperties(polymerElement);
 
         var polymerElementProps = newEmptyObject();
 
@@ -50,34 +50,36 @@ var getParentPolymerElementProperties = function() {
         return polymerElementProps;
     };
 
-    var getPolymerBinding = function(polymerElement, excludeParent, requestingChild) {
-        var polymerElementProps = buildBindingsElement(polymerElement);
+    var getPolymerBinding = function(element, parentBindings, childBindings) {
+        var elementBindings = getUserBindings(element);
 
-        if(!excludeParent) {
-            var parentPolymerElement = getParentPolymerElement(polymerElement);
-            if (parentPolymerElement) {
-                polymerElementProps.polymerParent = newEmptyObject();
-                polymerElementProps.polymerParent[parentPolymerElement.nodeName.toLowerCase()] = getPolymerBinding(parentPolymerElement, false, polymerElement);
-            }
+        var parentPolymerElement = getParentPolymerElement(element);
+        if (parentPolymerElement) {
+            elementBindings.$parent = newEmptyObject();
+            elementBindings.$parent[parentPolymerElement.nodeName.toLowerCase()] = parentBindings || getPolymerBinding(parentPolymerElement, false, elementBindings);
         }
 
+        var children = element.querySelectorAll("::shadow *");
         var polymerChildren = newEmptyObject();
-        var children = polymerElement.querySelectorAll("::shadow *");
-        for(var i = 0; i < children.length; i++) {
-            if(children[i] !== requestingChild && isPolymerElement(children[i])) {
-                polymerChildren[children[i].nodeName.toLowerCase()] = getPolymerBinding(children[i], true);
+        for (var i = 0; i < children.length; i++) {
+            if (children[i] === childBindings) {
+                polymerChildren[children[i].nodeName.toLowerCase()] = childBindings;
+            } else if (isPolymerElement(children[i])) {
+                polymerChildren[children[i].nodeName.toLowerCase()] = getPolymerBinding(children[i], elementBindings);
             }
         }
 
-        polymerElementProps.polymerChildren = polymerChildren;
+        if(Object.getOwnPropertyNames(polymerChildren).length > 0) {
+            elementBindings.$children = polymerChildren;
+        }
 
-        return polymerElementProps;
+        return elementBindings;
     };
 
-    var wrapPolmerBindings = function(elementName, polymerElementProps){
+    var wrapPolmerBindings = function(elementName, elementBindings){
         var obj = newEmptyObject();
 
-        obj[elementName.toLowerCase()] = polymerElementProps;
+        obj[elementName.toLowerCase()] = elementBindings;
 
         return obj;
     };
