@@ -9,12 +9,12 @@ var getParentPolymerElementProperties = function() {
     blackListProps = blackListProps.concat(Object.getOwnPropertyNames(document.body));
 
     var newEmptyObject = function(){
-        return { __proto__ : null };
-    }
+        return Object.create(null);
+    };
 
     var isPolymerElement = function(element) {
         return element.PolymerBase;
-    }
+    };
 
     var getParentPolymerElement = function(element){
         if(!(element && (element.parentNode || element.host))) {
@@ -36,9 +36,7 @@ var getParentPolymerElementProperties = function() {
         return props.concat(Object.getOwnPropertyNames(polymerElement.__proto__));
     };
 
-    var getUserBindings = function(polymerElement){
-        var props = getElementProperties(polymerElement);
-
+    function filterUserProperties(props, polymerElement) {
         var polymerElementProps = newEmptyObject();
 
         for (var i = 0; i < props.length; ++i) {
@@ -46,51 +44,53 @@ var getParentPolymerElementProperties = function() {
                 polymerElementProps[props[i]] = polymerElement[props[i]];
             }
         }
-
         return polymerElementProps;
-    };
+    }
 
-    var getPolymerBinding = function(element, parentBindings, childBindings) {
-        var elementBindings = getUserBindings(element);
-
+    function setParent(element, elementBindings, parentBindings) {
         var parentPolymerElement = getParentPolymerElement(element);
         if (parentPolymerElement) {
             elementBindings.$parent = newEmptyObject();
-            elementBindings.$parent[parentPolymerElement.nodeName.toLowerCase()] = parentBindings || getPolymerBinding(parentPolymerElement, false, elementBindings);
+            elementBindings.$parent[parentPolymerElement.nodeName.toLowerCase()] = parentBindings || buildPolymerElementInfoObject(parentPolymerElement, false, elementBindings);
         }
+    }
 
+    function setChildren(element, elementBindings, childBindings) {
         var children = element.querySelectorAll("::shadow *");
         var polymerChildren = newEmptyObject();
         for (var i = 0; i < children.length; i++) {
             if (children[i] === childBindings) {
                 polymerChildren[children[i].nodeName.toLowerCase()] = childBindings;
             } else if (isPolymerElement(children[i])) {
-                polymerChildren[children[i].nodeName.toLowerCase()] = getPolymerBinding(children[i], elementBindings);
+                polymerChildren[children[i].nodeName.toLowerCase()] = buildPolymerElementInfoObject(children[i], elementBindings);
             }
         }
-
         if(Object.getOwnPropertyNames(polymerChildren).length > 0) {
             elementBindings.$children = polymerChildren;
         }
+    }
 
+    var buildPolymerElementInfoObject = function(element, parentBindings, childBindings) {
+        var props = getElementProperties(element);
+        var elementBindings = filterUserProperties(props, element);
+
+        setParent(element, elementBindings, parentBindings);
+        setChildren(element, elementBindings, childBindings);
         return elementBindings;
     };
 
-    var wrapPolmerBindings = function(elementName, elementBindings){
-        var obj = newEmptyObject();
+    var wrapPolymerBindings = function(elementName, elementBindings){
+        var temp = newEmptyObject();
 
-        obj[elementName.toLowerCase()] = elementBindings;
+        temp[elementName.toLowerCase()] = elementBindings;
 
-        return obj;
+        return temp;
     };
 
     var parentPolymerElement = getParentPolymerElement($0);
 
-    if(parentPolymerElement)
-        return wrapPolmerBindings(parentPolymerElement.nodeName, getPolymerBinding(parentPolymerElement));
-
-    return newEmptyObject();
-}
+    return parentPolymerElement ? wrapPolymerBindings(parentPolymerElement.nodeName, buildPolymerElementInfoObject(parentPolymerElement)) : newEmptyObject();
+};
 
 chrome.devtools.panels.elements.createSidebarPane(
     "Polymer",
