@@ -13,7 +13,7 @@ var getParentPolymerElementProperties = function() {
     };
 
     var isPolymerElement = function(element) {
-        return element.PolymerBase;
+        return element.shadyRoot;
     };
 
     var getParentPolymerElement = function(element){
@@ -22,12 +22,7 @@ var getParentPolymerElementProperties = function() {
         }
 
         var parentElement = element.parentNode || element.host;
-        if(isPolymerElement(parentElement)) {
-            return parentElement;
-        }
-        else {
-            return getParentPolymerElement(parentElement);
-        }
+        return isPolymerElement(parentElement) ? parentElement : getParentPolymerElement(parentElement);
     };
 
     var getElementProperties = function(polymerElement) {
@@ -36,27 +31,28 @@ var getParentPolymerElementProperties = function() {
         return props.concat(Object.getOwnPropertyNames(polymerElement.__proto__));
     };
 
-    function filterUserProperties(props, polymerElement) {
-        var polymerElementProps = newEmptyObject();
 
+    var filterUserProperties = function filterUserProperties(props, polymerElement) {
+        var polymerElementProps = newEmptyObject();
+        var privateRegex = /^_.*/;
         for (var i = 0; i < props.length; ++i) {
-            if (blackListProps.indexOf(props[i]) < 0) {
+            if (blackListProps.indexOf(props[i]) < 0 && !privateRegex.test(props[i])) {
                 polymerElementProps[props[i]] = polymerElement[props[i]];
             }
         }
         return polymerElementProps;
-    }
+    };
 
-    function setParent(element, elementBindings, parentBindings) {
+    var setParent = function setParent(element, elementBindings, parentBindings) {
         var parentPolymerElement = getParentPolymerElement(element);
         if (parentPolymerElement) {
             elementBindings.$parent = newEmptyObject();
             elementBindings.$parent[parentPolymerElement.nodeName.toLowerCase()] = parentBindings || buildPolymerElementInfoObject(parentPolymerElement, false, elementBindings);
         }
-    }
+    };
 
-    function setChildren(element, elementBindings, childBindings) {
-        var children = element.querySelectorAll("::shadow *");
+    var setChildren = function setChildren(element, elementBindings, childBindings) {
+        var children = element.querySelectorAll("*");
         var polymerChildren = newEmptyObject();
         for (var i = 0; i < children.length; i++) {
             if (children[i] === childBindings) {
@@ -68,7 +64,7 @@ var getParentPolymerElementProperties = function() {
         if(Object.getOwnPropertyNames(polymerChildren).length > 0) {
             elementBindings.$children = polymerChildren;
         }
-    }
+    };
 
     var buildPolymerElementInfoObject = function(element, parentBindings, childBindings) {
         var props = getElementProperties(element);
